@@ -7,6 +7,7 @@ use pocketmine\level\ChunkManager;
 use pocketmine\level\generator\Generator;
 use pocketmine\level\Level;
 use pocketmine\math\Vector3;
+use pocketmine\Server;
 use pocketmine\utils\Random;
 
 class SpectreZoneGenerator extends Generator {
@@ -19,7 +20,7 @@ class SpectreZoneGenerator extends Generator {
 	/** @var int $height */
 	protected $height = 25;
 	/** @var int $separation */
-	protected $separation = 100;
+	protected $separation;
 
 	const ZONE = 0;
 	const SEPARATION = 1;
@@ -40,6 +41,8 @@ class SpectreZoneGenerator extends Generator {
 		}
 		if(array_key_exists("separation", $settings["preset"])) {
 			$this->separation = $settings["preset"]["separation"];
+		}else{
+			$this->separation = Server::getInstance()->getConfigInt("view-distance", 8) * 16;
 		}
 	}
 
@@ -55,7 +58,7 @@ class SpectreZoneGenerator extends Generator {
 	 * @return string
 	 */
 	public function getName(): string {
-		return self::class;
+		return "Spectre Zone";
 	}
 
 	/**
@@ -136,12 +139,14 @@ class SpectreZoneGenerator extends Generator {
 		for ($Z = 0; $Z < 16; ++$Z) {
 			for ($X = 0; $X < 16; ++$X) {
 				$chunk->setBlock($X, 0, $Z, Block::get(Block::INVISIBLE_BEDROCK));
-				for($Y = 1; $Y <= Level::Y_MAX; ++$Y) {
+				for ($Y = 1; $Y <= Level::Y_MAX; ++$Y) {
 					$type = $shape[($Z << 4) | $X];
 					if ($type === self::ZONE) {
-						$chunk->setBlock($X, $Y, $Z, Block::get(Block::AIR));
-					} elseif($type === self::WALL and $Y < $this->height and $Y > 0) {
-						$chunk->setBlock($X, $Y, $Z, Block::get(Block::GLOWSTONE));
+						if ($Y === 1) {
+							$chunk->setBlock($X, $Y, $Z, Block::get(Block::GRASS));
+						} else {
+							$chunk->setBlock($X, $Y, $Z, Block::get(Block::AIR));
+						}
 					} else {
 						$chunk->setBlock($X, $Y, $Z, Block::get(Block::INVISIBLE_BEDROCK));
 					}

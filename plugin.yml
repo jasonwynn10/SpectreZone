@@ -4,3 +4,6 @@ version: 0.1.0
 api:
  - 3.0.0
  - 3.0.0-ALPHA9
+description: "Creates a Spectre Zone dimension based on the MC Java Random Things Mod"
+author: jasonwynn10
+startup: POSTWORLD
