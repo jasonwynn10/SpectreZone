@@ -2,8 +2,10 @@
 declare(strict_types=1);
 namespace jasonwynn10\SZ;
 
+use pocketmine\block\Block;
 use pocketmine\level\ChunkManager;
 use pocketmine\level\generator\Generator;
+use pocketmine\level\Level;
 use pocketmine\math\Vector3;
 use pocketmine\utils\Random;
 
@@ -21,6 +23,7 @@ class SpectreZoneGenerator extends Generator {
 
 	const ZONE = 0;
 	const SEPARATION = 1;
+	const WALL = 2;
 
 	/**
 	 * SpectreZoneGenerator constructor.
@@ -94,7 +97,7 @@ class SpectreZoneGenerator extends Generator {
 			if ($Z < $this->width) {
 				$typeZ = self::ZONE;
 			} elseif ($Z === $this->width or $Z === ($totalSize-1)) {
-				$typeZ = self::SEPARATION;
+				$typeZ = self::WALL;
 			} else {
 				$typeZ = self::SEPARATION;
 			}
@@ -104,7 +107,7 @@ class SpectreZoneGenerator extends Generator {
 				if ($X < $this->width) {
 					$typeX = self::ZONE;
 				} elseif ($X === $this->width or $X === ($totalSize-1)) {
-					$typeX = self::SEPARATION;
+					$typeX = self::WALL;
 				} else {
 					$typeX = self::SEPARATION;
 				}
@@ -129,7 +132,26 @@ class SpectreZoneGenerator extends Generator {
 	 */
 	public function generateChunk(int $chunkX, int $chunkZ) {
 		$shape = $this->getShape($chunkX << 4, $chunkZ << 4);
-		//TODO
+		$chunk = $this->level->getChunk($chunkX, $chunkZ);
+		for ($Z = 0; $Z < 16; ++$Z) {
+			for ($X = 0; $X < 16; ++$X) {
+				$chunk->setBlock($X, 0, $Z, Block::get(Block::INVISIBLE_BEDROCK));
+				for($Y = 1; $Y <= Level::Y_MAX; ++$Y) {
+					$type = $shape[($Z << 4) | $X];
+					if ($type === self::ZONE) {
+						$chunk->setBlock($X, $Y, $Z, Block::get(Block::AIR));
+					} elseif($type === self::WALL and $Y < $this->height and $Y > 0) {
+						$chunk->setBlock($X, $Y, $Z, Block::get(Block::GLOWSTONE));
+					} else {
+						$chunk->setBlock($X, $Y, $Z, Block::get(Block::INVISIBLE_BEDROCK));
+					}
+				}
+			}
+		}
+		$chunk->setX($chunkX);
+		$chunk->setZ($chunkZ);
+		$chunk->setGenerated();
+		$this->level->setChunk($chunkX, $chunkZ, $chunk);
 	}
 
 	/**
