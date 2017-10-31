@@ -4,10 +4,15 @@ namespace jasonwynn10\SZ;
 
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\inventory\ShapedRecipe;
+use pocketmine\item\Item;
 use pocketmine\level\generator\Generator;
+use pocketmine\level\particle\DustParticle;
 use pocketmine\level\Position;
 use pocketmine\Player;
+use pocketmine\plugin\Plugin;
 use pocketmine\plugin\PluginBase;
+use pocketmine\scheduler\PluginTask;
 use pocketmine\utils\Config;
 use pocketmine\utils\TextFormat;
 
@@ -30,7 +35,18 @@ class SpectreZone extends PluginBase implements Listener {
 			}
 		}
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
-		//TODO: register recipe for specter key crafting
+		$data = new Config($this->getFile()."resources/recipes.json");
+		foreach ($data->getAll() as $recipe) {
+			$first = array_shift($recipe["output"]);
+
+			$this->getServer()->getCraftingManager()->registerRecipe(new ShapedRecipe(
+				Item::jsonDeserialize($first),
+				$recipe["shape"],
+				array_map(function(array $data) : Item{ return Item::jsonDeserialize($data); }, $recipe["input"]),
+				array_map(function(array $data) : Item{ return Item::jsonDeserialize($data); }, $recipe["output"])
+			));
+		}
+		//TODO: register recipe items' NBT data
 	}
 
 	/**
@@ -42,10 +58,24 @@ class SpectreZone extends PluginBase implements Listener {
 	public function onInteract(PlayerInteractEvent $event) {
 		if($event->getAction() === $event::RIGHT_CLICK_AIR) {
 			$item = $event->getItem();
-			if($item->getName() === TextFormat::BLUE."Spectre Key") {
+			if($item->getId() === Item::TRIPWIRE_HOOK and $item->getName() === TextFormat::BLUE."Spectre Key") {
 				$tag = $item->getNamedTagEntry("valid_key");
 				if($tag !== null) {
-					$this->teleportPlayerToSpecter($event->getPlayer());
+					$this->sendParticles($event->getPlayer());
+					$this->getServer()->getScheduler()->scheduleDelayedTask(new class($this, $event->getPlayer()) extends PluginTask {
+						/** @var string $player */
+						private $player;
+						public function __construct(Plugin $owner, Player $player) {
+							parent::__construct($owner);
+							$this->player = $player->getName();
+						}
+
+						public function onRun(int $currentTick) {
+							$player = $this->getOwner()->getServer()->getPlayer($this->player);
+							if($player !== null)
+								$this->getOwner()->teleportPlayerToSpecter($player);
+						}
+					}, 5 * 20);
 				}else{
 					$event->getPlayer()->sendMessage(TextFormat::RED."Invalid Spectre Key Detected!");
 				}
@@ -69,6 +99,19 @@ class SpectreZone extends PluginBase implements Listener {
 		if(!isset($level))
 			return false;
 		return $player->teleport(new Position($zoneData["x"], $zoneData["y"], $zoneData["z"], $level));
+	}
+
+	/**
+	 * @param Position $pos
+	 */
+	public function sendParticles(Position $pos) {
+		if(($level = $pos->getLevel()) !== null) {
+			for($i = 0; $i <= 1; $i += 0.05) {
+				$particle = new DustParticle(new Position($pos->x + $i, $pos + 1 + $i, $pos->z - $i), 0, 237, 255, 127);
+				$level->addParticle($particle);
+				//TODO: proper math
+			}
+		}
 	}
 
 	/**
